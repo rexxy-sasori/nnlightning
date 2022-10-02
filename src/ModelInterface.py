@@ -3,7 +3,6 @@
 
 import torch
 from torch import nn
-from torch import optim
 from torchvision import datasets, transforms
 from torch.utils.data import random_split, DataLoader
 import pytorch_lightning as pl
@@ -14,12 +13,13 @@ from importlib import import_module
 
 
 class ModelInterface(pl.LightningModule):
-    def __init__(self, model_name):
+    def __init__(self, model_name, optimizer_func, lr):
         super().__init__()
         self.save_hyperparameters()
         self.load_model(model_name)
-        self.lr = 1e-2
-
+        self.optimizer_func = optimizer_func
+        self.lr = lr
+        
     def load_model(self, name):
         try:
             Model = getattr(import_module(
@@ -30,8 +30,7 @@ class ModelInterface(pl.LightningModule):
         self.model = Model()
 
     def configure_optimizers(self):
-        optimiser = optim.SGD(self.parameters(), lr=self.lr)
-        return optimiser
+        return self.optimiser_func(self.parameters(), lr=self.lr)
 
     def forward(self, x):
         return self.model.forward(x)
@@ -43,7 +42,6 @@ class ModelInterface(pl.LightningModule):
         acc = torchmetrics.functional.accuracy(prediction, y)
         self.log("training_loss", loss)
         self.log("training_acc", acc)
-        self.log("learning-rate", self.lr)
         return {'loss': loss}
 
     def validation_step(self, batch, batch_idx):
